@@ -1,0 +1,57 @@
+{
+  "$comment": "Model aliases and fallback chains. Aliases resolve to the first model whose provider has a key configured. Fallbacks are walked when a provider reports the model as unavailable (retired, not found).",
+  "aliases": {
+    "llm": {
+      "smart": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "gpt-4.1",
+        "gemini-2.5-flash"
+      ],
+      "fast": [
+        "claude-haiku-5-5",
+        "gemini-2.5-flash",
+        "gpt-4.1",
+        "claude-sonnet-5-5"
+      ]
+    },
+    "stt": {
+      "default": [
+        "nova-3",
+        "gpt-4o-mini-transcribe",
+        "gemini-live-2.5-flash-preview",
+        "whisper-base"
+      ]
+    }
+  },
+  "fallbacks": {
+    "claude-opus-5-5": [
+      "claude-sonnet-5-5",
+      "claude-haiku-5-5"
+    ],
+    "claude-sonnet-5-5": [
+      "claude-haiku-5-5"
+    ],
+    "claude-haiku-5-5": [
+      "claude-sonnet-5-5"
+    ],
+    "gpt-4.1": [
+      "claude-sonnet-5-5",
+      "gemini-2.5-flash"
+    ],
+    "gemini-2.5-flash": [
+      "claude-sonnet-5-5",
+      "gpt-4.1"
+    ]
+  },
+  "unavailablePatterns": [
+    "model_not_found",
+    "not_found_error",
+    "does not exist",
+    "has been deprecated",
+    "has been retired",
+    "is not supported",
+    "unknown model",
+    "invalid model"
+  ]
+}

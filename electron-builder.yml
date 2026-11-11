@@ -1,0 +1,73 @@
+# electron-builder.yml
+
+# The unique application ID
+appId: com.epsilon.app
+
+# The user-facing application name
+productName: Epsilon
+
+# Protocols configuration for deep linking
+protocols:
+    name: Epsilon Protocol
+    schemes: 
+        - epsilon
+
+# List of files to be included in the app package
+files:
+    - src/**/*
+    - package.json
+    - web/backend_node/**/*
+    - '!**/node_modules/electron/**'
+    - public/build/**/*
+
+# Additional resources to be copied into the app's resources directory
+extraResources:
+    - from: web/out
+      to: out
+
+asarUnpack:
+    - "src/ui/assets/SystemAudioDump"
+    - "**/node_modules/sharp/**/*"
+    - "**/node_modules/@img/**/*"
+
+# Windows configuration
+win:
+    icon: src/ui/assets/logo.ico
+    target:
+        - target: nsis
+          arch: x64
+        - target: portable
+          arch: x64
+    requestedExecutionLevel: asInvoker
+    signAndEditExecutable: true
+    cscLink: build\certs\epsilon-dev.pfx
+    cscKeyPassword: "${env.CSC_KEY_PASSWORD}"
+    signtoolOptions:
+      certificateSubjectName: "Epsilon Dev Code Signing"
+
+# NSIS installer configuration for Windows
+nsis:
+    oneClick: false
+    perMachine: false
+    allowToChangeInstallationDirectory: true
+    deleteAppDataOnUninstall: true
+    createDesktopShortcut: always
+    createStartMenuShortcut: true
+    shortcutName: Epsilon
+
+# macOS specific configuration
+mac:
+    # The application category type
+    category: public.app-category.utilities
+    # Path to the .icns icon file
+    icon: src/ui/assets/logo.icns
+    # Minimum macOS version (supports both Intel and Apple Silicon)
+    minimumSystemVersion: '11.0'
+    hardenedRuntime: true
+    entitlements: entitlements.plist
+    entitlementsInherit: entitlements.plist
+    target:
+      - target: dmg
+        arch: universal
+      - target: zip
+        arch: universal
