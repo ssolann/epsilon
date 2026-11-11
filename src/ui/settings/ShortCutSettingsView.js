@@ -9,6 +9,7 @@ const displayNameMap = {
     togglePalette: 'Command Palette',
     toggleListen: 'Start / Stop Listening',
     toggleSettings: 'Open / Close Settings',
+    toggleAutoHide: 'Auto-hide on Screen Share',
     nextStep: 'Ask Anything',
     moveUp: 'Move Up Window',
     moveDown: 'Move Down Window',

@@ -1,4 +1,7 @@
 const { BrowserWindow, globalShortcut, screen, app, shell } = require('electron');
+
+// DevTools draws a "W × H" size overlay on every window resize. Opt in with EPSILON_DEVTOOLS=1.
+const DEVTOOLS_ENABLED = !app.isPackaged && process.env.EPSILON_DEVTOOLS === '1';
 const WindowLayoutManager = require('./windowLayoutManager');
 const SmoothMovementManager = require('./smoothMovementManager');
 const path = require('node:path');
@@ -498,7 +501,7 @@ function createFeatureWindows(header, namesToCreate) {
                         }
                     });
                 }
-                if (!app.isPackaged) {
+                if (DEVTOOLS_ENABLED) {
                     listen.webContents.openDevTools({ mode: 'detach' });
                 }
                 windowPool.set('listen', listen);
@@ -531,7 +534,7 @@ function createFeatureWindows(header, namesToCreate) {
                 }
                 
                 // Open DevTools in development
-                if (!app.isPackaged) {
+                if (DEVTOOLS_ENABLED) {
                     ask.webContents.openDevTools({ mode: 'detach' });
                 }
                 windowPool.set('ask', ask);
@@ -566,7 +569,7 @@ function createFeatureWindows(header, namesToCreate) {
                 }
                 windowPool.set('settings', settings);  
 
-                if (!app.isPackaged) {
+                if (DEVTOOLS_ENABLED) {
                     settings.webContents.openDevTools({ mode: 'detach' });
                 }
                 break;
@@ -628,7 +631,7 @@ function createFeatureWindows(header, namesToCreate) {
                 }
 
                 windowPool.set('shortcut-settings', shortcutEditor);
-                if (!app.isPackaged) {
+                if (DEVTOOLS_ENABLED) {
                     shortcutEditor.webContents.openDevTools({ mode: 'detach' });
                 }
                 break;
@@ -764,7 +767,7 @@ function createWindows() {
     header.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     
     // Open DevTools in development
-    if (!app.isPackaged) {
+    if (DEVTOOLS_ENABLED) {
         header.webContents.openDevTools({ mode: 'detach' });
     }
 

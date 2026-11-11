@@ -214,7 +214,8 @@ function getDefaultSettings() {
         googleSearchEnabled: false,
         backgroundTransparency: 0.5,
         fontSize: 14,
-        contentProtection: true
+        contentProtection: true,
+        autoHideOnScreenShare: true
     };
 }
 
@@ -401,6 +402,16 @@ async function updateContentProtection(enabled) {
     }
 }
 
+async function getAutoHideOnScreenShare() {
+    const settings = await getSettings();
+    return settings.autoHideOnScreenShare !== false;
+}
+
+async function setAutoHideOnScreenShare(enabled) {
+    await saveSettings({ autoHideOnScreenShare: Boolean(enabled) });
+    return Boolean(enabled);
+}
+
 async function getAutoUpdateSetting() {
     try {
         return settingsRepository.getAutoUpdate();
@@ -455,6 +466,8 @@ module.exports = {
     removeApiKey,
     updateContentProtection,
     getAutoUpdateSetting,
+    getAutoHideOnScreenShare,
+    setAutoHideOnScreenShare,
     setAutoUpdateSetting,
     // Model settings facade
     getModelSettings,

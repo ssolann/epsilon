@@ -110,6 +110,12 @@ class ShortcutsService {
         console.log(`[Shortcuts] Saved keybinds.`);
     }
 
+    /** Hide or show everything, no-op when already in that state. Used by the screen-share watcher. */
+    async setAllWindowsVisibility(visible) {
+        if (this.allWindowVisibility === visible) return;
+        await this.toggleAllWindowsVisibility();
+    }
+
     async toggleAllWindowsVisibility() {
         console.log(`[Shortcuts] toggleAllWindowsVisibility -> ${!this.allWindowVisibility ? 'show' : 'hide'}`);
         const targetVisibility = !this.allWindowVisibility;
@@ -150,6 +156,14 @@ class ShortcutsService {
                 // The header owns the listen session state machine; let it decide Listen / Stop / Done.
                 callback = () => {
                     if (header && !header.isDestroyed()) header.webContents.send('header:triggerListen');
+                };
+                break;
+            case 'toggleAutoHide':
+                callback = async () => {
+                    const settingsService = require('../settings/settingsService');
+                    const next = !(await settingsService.getAutoHideOnScreenShare());
+                    await settingsService.setAutoHideOnScreenShare(next);
+                    console.log(`[Shortcuts] Auto-hide on screen share: ${next ? 'on' : 'off'}`);
                 };
                 break;
             case 'toggleSettings':

@@ -26,6 +26,8 @@ const sessionRepository = require('./features/common/repositories/session');
 const modelStateService = require('./features/common/services/modelStateService');
 const featureBridge = require('./bridge/featureBridge');
 const windowBridge = require('./bridge/windowBridge');
+const screenShareWatcher = require('./features/common/services/screenShareWatcher');
+const shortcutsService = require('./features/shortcuts/shortcutsService');
 
 // Global variables
 const eventBridge = new EventEmitter();
@@ -213,6 +215,7 @@ app.whenReady().then(async () => {
         console.log('Web front-end listening on', WEB_PORT);
         
         createWindows();
+        startScreenShareWatcher();
 
     } catch (err) {
         console.error('>>> [index.js] Database initialization failed - some features may not work', err);
@@ -235,6 +238,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', async (event) => {
+    screenShareWatcher.stop();
     // Prevent infinite loop by checking if shutdown is already in progress
     if (isShuttingDown) {
         console.log('[Shutdown] 🔄 Shutdown already in progress, allowing quit...');
@@ -509,6 +513,28 @@ function handlePersonalizeFromUrl(params) {
     }
 }
 
+
+// Hide the overlay while another app shares or records the screen, restore when it stops.
+function startScreenShareWatcher() {
+    let hiddenByShare = false;
+    screenShareWatcher.on('change', async ({ sharing, source, detail }) => {
+        try {
+            const enabled = await settingsService.getAutoHideOnScreenShare();
+            if (sharing) {
+                if (!enabled) { console.log('[ScreenShare] Auto-hide disabled, leaving overlay visible'); return; }
+                if (!shortcutsService.allWindowVisibility) return; // already hidden by the user
+                hiddenByShare = true;
+                await shortcutsService.setAllWindowsVisibility(false);
+            } else if (hiddenByShare) {
+                hiddenByShare = false;
+                await shortcutsService.setAllWindowsVisibility(true);
+            }
+        } catch (error) {
+            console.error('[ScreenShare] Failed to apply visibility change:', error);
+        }
+    });
+    screenShareWatcher.start({ ignoreBundles: ['com.epsilon.app', 'com.github.Electron'] });
+}
 
 async function startWebStack() {
   console.log('NODE_ENV =', process.env.NODE_ENV); 

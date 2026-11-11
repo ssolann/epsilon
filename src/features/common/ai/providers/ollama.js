@@ -300,12 +300,23 @@ function createStreamingLLM({
 
                     console.log('[Ollama Provider] Got streaming response');
 
+                    let closed = false;
+                    const finish = (controller, error) => {
+                        if (closed) return;
+                        closed = true;
+                        try {
+                            if (error) controller.error(error);
+                            else controller.close();
+                        } catch (_) { /* consumer already cancelled */ }
+                    };
+
                     const stream = new ReadableStream({
                         async start(controller) {
                             let buffer = '';
 
                             try {
                                 response.body.on('data', (chunk) => {
+                                    if (closed) return;
                                     buffer += chunk.toString();
                                     const lines = buffer.split('\n');
                                     buffer = lines.pop() || '';
@@ -337,19 +348,23 @@ function createStreamingLLM({
                                 });
 
                                 response.body.on('end', () => {
-                                    controller.close();
+                                    finish(controller);
                                     console.log('[Ollama Provider] Streaming completed');
                                 });
 
                                 response.body.on('error', (error) => {
                                     console.error('[Ollama Provider] Streaming error:', error);
-                                    controller.error(error);
+                                    finish(controller, error);
                                 });
                                 
                             } catch (error) {
                                 console.error('[Ollama Provider] Streaming setup error:', error);
-                                controller.error(error);
+                                finish(controller, error);
                             }
+                        },
+                        cancel() {
+                            closed = true;
+                            try { response.body.destroy(); } catch (_) {}
                         }
                     });
 

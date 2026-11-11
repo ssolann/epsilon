@@ -20,6 +20,7 @@ const ACTIONS = [
     { id: 'toggleListen',      label: 'Start / stop listening',     mac: 'Cmd+L',          win: 'Ctrl+L' },
     { id: 'toggleSettings',    label: 'Open / close settings',      mac: 'Cmd+,',          win: 'Ctrl+,' },
     { id: 'toggleVisibility',  label: 'Show / hide overlay',        mac: 'Cmd+\\',         win: 'Ctrl+\\' },
+    { id: 'toggleAutoHide',    label: 'Auto-hide on screen share',  mac: 'Cmd+Shift+H',    win: 'Ctrl+Shift+H' },
     { id: 'toggleClickThrough',label: 'Toggle click-through',       mac: 'Cmd+M',          win: 'Ctrl+M' },
     { id: 'manualScreenshot',  label: 'Take screenshot',            mac: 'Cmd+Shift+S',    win: 'Ctrl+Shift+S' },
     { id: 'previousResponse',  label: 'Previous response',          mac: 'Cmd+[',          win: 'Ctrl+[' },
