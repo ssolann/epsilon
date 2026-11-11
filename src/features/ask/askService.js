@@ -238,7 +238,7 @@ class AskService {
         let sessionId;
 
         try {
-            console.log(`[AskService] 🤖 Processing message: ${userPrompt.substring(0, 50)}...`);
+            console.log(`[AskService] 🤖 Processing message (${userPrompt.trim().length} chars)`);
 
             sessionId = await sessionRepository.getOrCreateActive('ask');
             await askRepository.addAiMessage({ sessionId, role: 'user', content: userPrompt.trim() });
@@ -280,10 +280,16 @@ class AskService {
                     model: info.model,
                     temperature: 0.7,
                     maxTokens: 2048,
+                    purpose: 'ask',
                 });
 
                 try {
                     const response = await streamingLLM.streamChat(messages);
+                    if (signal.aborted) {
+                        console.log('[AskService] Request superseded before streaming started; discarding.');
+                        try { response.body?.getReader?.().cancel?.(signal.reason); } catch { /* ignore */ }
+                        return { success: false, error: 'superseded' };
+                    }
                     const askWin = getWindowPool()?.get('ask');
 
                     if (!askWin || askWin.isDestroyed()) {
@@ -298,7 +304,7 @@ class AskService {
                         reader.cancel(signal.reason).catch(() => { /* 이미 취소된 경우의 오류는 무시 */ });
                     });
 
-                    await this._processStream(reader, askWin, sessionId, signal);
+                    await this._processStream(reader, askWin, sessionId, signal, response.epsilon);
                     return { success: true };
 
                 } catch (multimodalError) {
@@ -316,6 +322,14 @@ class AskService {
                         ];
 
                         const fallbackResponse = await streamingLLM.streamChat(textOnlyMessages);
+
+                        if (signal.aborted) {
+
+                            try { fallbackResponse.body?.getReader?.().cancel?.(signal.reason); } catch { /* ignore */ }
+
+                            return { success: false, error: 'superseded' };
+
+                        }
                         const askWin = getWindowPool()?.get('ask');
 
                         if (!askWin || askWin.isDestroyed()) {
@@ -330,7 +344,7 @@ class AskService {
                             fallbackReader.cancel(signal.reason).catch(() => {});
                         });
 
-                        await this._processStream(fallbackReader, askWin, sessionId, signal);
+                        await this._processStream(fallbackReader, askWin, sessionId, signal, fallbackResponse.epsilon);
                         return { success: true };
                     } else {
                         // 다른 종류의 에러이거나 스크린샷이 없었다면 그대로 throw
@@ -377,15 +391,22 @@ class AskService {
      * @returns {Promise<void>}
      * @private
      */
-    async _processStream(reader, askWin, sessionId, signal) {
+    async _processStream(reader, askWin, sessionId, signal, gateway = null) {
         const decoder = new TextDecoder();
         let fullResponse = '';
+        const rehydrate = gateway?.rehydrator ? (t) => gateway.rehydrator.push(t) : (t) => t;
 
         try {
             this.state.isLoading = false;
             this.state.isStreaming = true;
+            if (gateway?.hits?.length) {
+                const routeNote = gateway.routed === 'fallback' ? ` · routed to ${gateway.provider}` : '';
+                fullResponse += `_Redacted before sending: ${gateway.summary}${routeNote}_\n\n`;
+                this.state.currentResponse = fullResponse;
+            }
             this._broadcastState();
             while (true) {
+                if (signal.aborted) break;
                 const { done, value } = await reader.read();
                 if (done) break;
 
@@ -400,7 +421,7 @@ class AskService {
                         }
                         try {
                             const json = JSON.parse(data);
-                            const token = json.choices[0]?.delta?.content || '';
+                            const token = rehydrate(json.choices[0]?.delta?.content || '');
                             if (token) {
                                 fullResponse += token;
                                 this.state.currentResponse = fullResponse;
@@ -421,9 +442,12 @@ class AskService {
                 }
             }
         } finally {
-            this.state.isStreaming = false;
-            this.state.currentResponse = fullResponse;
-            this._broadcastState();
+            if (gateway?.rehydrator) fullResponse += gateway.rehydrator.flush();
+            if (!signal.aborted) {
+                this.state.isStreaming = false;
+                this.state.currentResponse = fullResponse;
+                this._broadcastState();
+            }
             if (fullResponse) {
                  try {
                     await askRepository.addAiMessage({ sessionId, role: 'assistant', content: fullResponse });

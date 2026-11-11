@@ -87,7 +87,8 @@ const PROVIDERS = {
   },
 };
 
-function createSTT(provider, opts) {
+// Raw creators talk to the provider module directly. Only the gateway may use them.
+function createSTTRaw(provider, opts) {
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createSTT) {
       throw new Error(`STT not supported for provider: ${provider}`);
@@ -95,7 +96,7 @@ function createSTT(provider, opts) {
   return handler.createSTT(opts);
 }
 
-function createLLM(provider, opts) {
+function createLLMRaw(provider, opts) {
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createLLM) {
       throw new Error(`LLM not supported for provider: ${provider}`);
@@ -103,12 +104,26 @@ function createLLM(provider, opts) {
   return handler.createLLM(opts);
 }
 
-function createStreamingLLM(provider, opts) {
+function createStreamingLLMRaw(provider, opts) {
   const handler = PROVIDERS[provider]?.handler();
   if (!handler?.createStreamingLLM) {
       throw new Error(`Streaming LLM not supported for provider: ${provider}`);
   }
   return handler.createStreamingLLM(opts);
+}
+
+// Public creators: everything goes through the context gateway (redaction, policy, manifest).
+async function createSTT(provider, opts) {
+  await require('./gateway').checkSTT(provider, opts);
+  return createSTTRaw(provider, opts);
+}
+
+function createLLM(provider, opts) {
+  return require('./gateway').wrapLLM(provider, createLLMRaw(provider, opts), opts);
+}
+
+function createStreamingLLM(provider, opts) {
+  return require('./gateway').wrapStreamingLLM(provider, createStreamingLLMRaw(provider, opts), opts);
 }
 
 function getProviderClass(providerId) {
@@ -147,6 +162,9 @@ module.exports = {
   createSTT,
   createLLM,
   createStreamingLLM,
+  createSTTRaw,
+  createLLMRaw,
+  createStreamingLLMRaw,
   getProviderClass,
   getAvailableProviders,
 };

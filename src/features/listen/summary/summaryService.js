@@ -143,6 +143,7 @@ Keep all points concise and build upon previous analysis if provided.`,
                 model: info.model,
                 temperature: 0.7,
                 maxTokens: 1024,
+                purpose: 'summary',
             }).chat(messages);
 
             let completion;

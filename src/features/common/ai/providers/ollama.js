@@ -1,5 +1,39 @@
 const http = require('http');
 const fetch = require('node-fetch');
+const { supportsVision, dropImagesUnlessVision } = require('./ollamaVision');
+
+// model -> true/false/null (null = server did not report capabilities); refreshed on each new model name
+const visionCache = new Map();
+async function modelSupportsVision(baseUrl, model) {
+    if (visionCache.has(model)) return visionCache.get(model);
+    let result = null;
+    try {
+        const res = await fetch(`${baseUrl}/api/show`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: model }) });
+        if (res.ok) result = supportsVision(await res.json());
+    } catch (error) {
+        console.warn(`[Ollama Provider] Could not read capabilities for ${model}: ${error.message}`);
+    }
+    visionCache.set(model, result);
+    return result;
+}
+
+/** Converts messages and strips images the model cannot take. */
+async function prepareMessages(baseUrl, model, messages) {
+    const converted = convertMessagesToOllamaFormat(messages);
+    const vision = await modelSupportsVision(baseUrl, model);
+    const { messages: out, dropped } = dropImagesUnlessVision(converted, vision);
+    if (dropped > 0) console.log(`[Ollama Provider] ${model} has no vision capability; dropped ${dropped} image(s) from the request`);
+    const withImages = out.filter(m => Array.isArray(m.images) && m.images.length).length;
+    console.log(`[Ollama Provider] Prepared ${out.length} messages for ${model} (${withImages} with images)`);
+    return out;
+}
+
+/** Reads the body so the real reason (e.g. "image input is not supported") reaches the caller. */
+async function apiError(response) {
+    let detail = '';
+    try { detail = (await response.text()).slice(0, 300); } catch { /* ignore */ }
+    return new Error(`Ollama API error: ${response.status} ${response.statusText}${detail ? ` - ${detail}` : ''}`);
+}
 
 // Request Queue System for Ollama API (only for non-streaming requests)
 class RequestQueue {
@@ -170,7 +204,7 @@ function createLLM({
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+                        throw await apiError(response);
                     }
 
                     const result = await response.json();
@@ -189,7 +223,7 @@ function createLLM({
         },
 
         chat: async (messages) => {
-            const ollamaMessages = convertMessagesToOllamaFormat(messages);
+            const ollamaMessages = await prepareMessages(baseUrl, model, messages);
 
             // Use request queue to prevent concurrent API calls
             return await requestQueue.add(async () => {
@@ -209,7 +243,7 @@ function createLLM({
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+                        throw await apiError(response);
                     }
 
                     const result = await response.json();
@@ -241,8 +275,7 @@ function createStreamingLLM({
         streamChat: async (messages) => {
             console.log('[Ollama Provider] Starting streaming request');
 
-            const ollamaMessages = convertMessagesToOllamaFormat(messages);
-            console.log('[Ollama Provider] Converted messages for Ollama:', ollamaMessages);
+            const ollamaMessages = await prepareMessages(baseUrl, model, messages);
 
             // Streaming requests have priority over queued requests
             return await requestQueue.addStreamingRequest(async () => {
@@ -262,7 +295,7 @@ function createStreamingLLM({
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+                        throw await apiError(response);
                     }
 
                     console.log('[Ollama Provider] Got streaming response');
