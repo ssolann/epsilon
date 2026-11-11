@@ -4,8 +4,6 @@ A local-first meeting co-pilot for macOS and Windows. Epsilon sits as an overlay
 
 Everything stays on your machine. There is no account, no cloud sync, and no telemetry. You bring your own AI provider key, or run fully offline with Ollama and Whisper.
 
-Epsilon started as a fork of [Pickle Glass](https://github.com/pickle-com/glass) (itself a fork of [CheatingDaddy](https://github.com/sohzm/cheating-daddy)). The upstream project has since been taken down; this repo is maintained independently under the GPL-3.0 licence.
-
 ## Features
 
 - **Listen**: live transcript of both sides of the call, speaker-separated, with a summary that updates as the meeting goes on.
